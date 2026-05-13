@@ -1,0 +1,12 @@
+.DS_Store
+*.o
+*.dSYM/
+
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+
+simulation
+orbit.txt
