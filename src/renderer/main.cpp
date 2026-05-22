@@ -5,7 +5,10 @@
 #include <algorithm>
 #include "engine.h"
 
-
+#define MAX_VIEW_DISTANCE 220.0f
+#define STAR_SPEED_SCALE 20.0f
+#define BACKGROUND_GLOW_SIZE 150.0f
+#define TRAIL_LENGTH_FACTOR 0.8f
 
 static float clamp01(float value) {
     return std::max(0.0f, std::min(1.0f, value));
@@ -15,30 +18,122 @@ static float mixf(float a, float b, float t) {
     return a + (b - a) * t;
 }
 
-static void drawAccretionGlow(const body* b, float scale, float massScale, float pulse) {
-    float invScale = 1.0f / scale;
+static void renderBackgroundGlow(float x, float y, float scale) {
+    float zoomFactor = 1.0f / scale;
 
-    glPointSize(118.0f * massScale * invScale);
+    glPointSize(BACKGROUND_GLOW_SIZE * zoomFactor);
     glBegin(GL_POINTS);
-        glColor4f(0.05f, 0.12f, 0.42f, 0.055f * pulse);
+        glColor4f(0.10f, 0.16f, 0.45f, 0.02f);
+        glVertex2f(x, y);
+    glEnd();
+
+    glPointSize((BACKGROUND_GLOW_SIZE * 0.6f) * zoomFactor);
+    glBegin(GL_POINTS);
+        glColor4f(0.25f, 0.12f, 0.40f, 0.03f);
+        glVertex2f(x, y);
+    glEnd();
+}
+
+static void renderTrails(Simulation* sim, int massiveCount, double baryX, double baryY, float scale) {
+    glLineWidth(1.0f);
+    for (int i=massiveCount; i<sim->num_bodies; i++) {
+        body *b=&sim->bodies[i];
+        glBegin(GL_LINE_STRIP);
+        for (int j=0; j<TRAIL_LENGTH;j++) {
+            int idx=(b->trail_index+j)%TRAIL_LENGTH;
+            float alpha=(float)j/TRAIL_LENGTH;
+            glColor4f(0.7f,0.8f,1.0f,alpha*0.17f);
+            glVertex2f((float)b->trail_x[idx],(float)b->trail_y[idx]);
+
+        }
+        glEnd();
+    }
+
+
+    glEnd();
+}
+
+static void renderStars(Simulation* sim, int massiveCount, double baryX, double baryY, float scale) {
+    float zoomFactor = 1.0f / sqrt(scale);
+
+    for (int i = massiveCount; i < sim->num_bodies; i++) {
+        body* b = &sim->bodies[i];
+
+        double dx = b->x - baryX;
+        double dy = b->y - baryY;
+        double dist = sqrt(dx * dx + dy * dy);
+
+        float distFade = (dist > 150.0) ? (float)(150.0 / dist) : 1.0f;
+
+        double speed = sqrt(b->vx * b->vx + b->vy * b->vy);
+        float intensity = clamp01((float)(speed / STAR_SPEED_SCALE));
+
+        // Particle color is derived from velocity.
+        // Faster particles appear hotter and brighter.
+        float red = mixf(0.45f, 1.0f, intensity);
+        float green = mixf(0.55f, 0.85f, intensity);
+        float blue = 1.0f;
+
+        // Faster stars appear brighter and larger
+        float pointSize;
+        float alpha;
+
+        if (speed > 15.0) {
+            // Fast stars near massive bodies should stand out,
+            // but not overpower the rest of the galaxy
+            pointSize = 2.5f * zoomFactor;
+            alpha = 0.62f * distFade;
+        } else if (speed > 8.0) {
+            pointSize = 1.9f * zoomFactor;
+            alpha = 0.50f * distFade;
+        } else {
+            // Boost slower background stars slightly more
+            // so the galaxy feels fuller and more luminous
+            pointSize = 1.5f * zoomFactor;
+            alpha = 0.42f * distFade;
+        }
+
+        // Soft outer glow
+        // Glow strength scales more gently now so
+        // high-speed stars do not dominate the frame
+        float glowStrength = mixf(0.05f, 0.10f, intensity);
+
+        glPointSize(pointSize * 1.9f);
+        glBegin(GL_POINTS);
+            glColor4f(red, green, blue, alpha * glowStrength);
+            glVertex2f((float)b->x, (float)b->y);
+        glEnd();
+
+        // Bright star core
+        glPointSize(pointSize);
+        glBegin(GL_POINTS);
+            glColor4f(red, green, blue, alpha);
+            glVertex2f((float)b->x, (float)b->y);
+        glEnd();
+    }
+}
+
+static void drawCentralBody(const body* b, float scale, float massScale) { //bright center + glow
+    float zoomFactor = 1.0f / scale;
+
+    // Outer soft glow
+    glPointSize(90.0f * massScale * zoomFactor);
+    glBegin(GL_POINTS);
+        glColor4f(0.25f, 0.35f, 0.85f, 0.05f);
         glVertex2f((float)b->x, (float)b->y);
     glEnd();
 
-    glPointSize(68.0f * massScale * invScale);
+    // Inner brighter glow
+    glPointSize(42.0f * massScale * zoomFactor);
     glBegin(GL_POINTS);
-        glColor4f(0.42f, 0.11f, 0.72f, 0.075f * pulse);
+        glColor4f(0.85f, 0.75f, 1.0f, 0.12f);
         glVertex2f((float)b->x, (float)b->y);
     glEnd();
 
-    glPointSize(28.0f * massScale * invScale);
+    // Bright center core
+    glPointSize(10.0f * massScale * zoomFactor);
     glBegin(GL_POINTS);
-        glColor4f(1.0f, 0.42f, 0.10f, 0.18f * pulse);
-        glVertex2f((float)b->x, (float)b->y);
-    glEnd();
-
-    glPointSize(9.0f * massScale * invScale);
-    glBegin(GL_POINTS);
-        glColor4f(1.0f, 0.96f, 0.82f, 0.96f);
+        glColor4f(1.0f, 1.0f, 1.0f, 0.95f);
         glVertex2f((float)b->x, (float)b->y);
     glEnd();
 }
@@ -47,7 +142,7 @@ int main() {
     int N = 2000;
     double G = 1.0;
     // Base integration step remains constant for engine accuracy
-    double base_dt = 0.008;
+    double base_dt = 0.008; 
 
     Simulation* sim = init_simulation(N, G, base_dt);
     if (sim == NULL || sim->bodies == NULL) {
@@ -56,7 +151,7 @@ int main() {
     }
 
     if (!glfwInit()) return -1;
-    GLFWwindow* window = glfwCreateWindow(800, 800, "Binary Black Hole Simulation", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 800, "Binary Central Body Simulation", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -124,91 +219,20 @@ int main() {
         float focusX = (float)baryX;
         float focusY = (float)baryY;
 
-        // PASS 1: Soft blue-violet circumbinary envelope
+        // Rendering pipeline:
+        // 1. Background glow for large-scale galactic atmosphere
+        // 2. Motion trails to visualize velocity and orbital motion
+        // 3. Stars and interstellar particles
+        // 4. Massive central bodies with additive glow
 
-        glPointSize(190.0f * (1.0f / scale));
-        glBegin(GL_POINTS);
-            glColor4f(0.10f, 0.18f, 0.55f, 0.018f);
-            glVertex2f(focusX, focusY);
-        glEnd();
+        // PASS 1: Background galactic glow
+        renderBackgroundGlow(focusX, focusY, scale);
 
-        glPointSize(118.0f * (1.0f / scale));
-        glBegin(GL_POINTS);
-            glColor4f(0.24f, 0.10f, 0.42f, 0.026f);
-            glVertex2f(focusX, focusY);
-        glEnd();
+        // PASS 2: Motion trails
+        renderTrails(sim, massiveCount, baryX, baryY, scale);
 
-        // PASS 2: Faint stellar motion streaks
-        glLineWidth(1.0f);
-        glBegin(GL_LINES);
-        for (int i = massiveCount; i < sim->num_bodies; i++) {
-            body* b = &sim->bodies[i];
-
-            double dx = b->x - baryX;
-            double dy = b->y - baryY;
-            double dist = sqrt(dx * dx + dy * dy);
-            float distFade = clamp01((float)(1.0 - (dist / 210.0)));
-            double speed = sqrt(b->vx * b->vx + b->vy * b->vy);
-            float speedGlow = clamp01((float)(speed / 19.0));
-            float armTint = 0.5f + 0.5f * (float)sin(atan2(dy, dx) * 2.0 + dist * 0.045);
-            float trail = (0.55f + speedGlow * 1.2f) * (1.0f / scale);
-
-            float r = mixf(0.25f, 1.0f, speedGlow);
-            float g = mixf(0.46f, 0.74f, armTint);
-            float blue = mixf(0.90f, 1.0f, 1.0f - speedGlow);
-
-            glColor4f(r, g, blue, 0.060f * distFade);
-            glVertex2f((float)b->x, (float)b->y);
-            glColor4f(r, g, blue, 0.0f);
-            glVertex2f((float)(b->x - b->vx * trail), (float)(b->y - b->vy * trail));
-        }
-        glEnd();
-
-        // PASS 3: Interstellar dust and orbiting stars
-        for (int i = massiveCount; i < sim->num_bodies; i++) {
-            body* b = &sim->bodies[i];
-
-            double dx = b->x - baryX;
-            double dy = b->y - baryY;
-            double dist = sqrt(dx * dx + dy * dy);
-            float distFade = (dist > 150.0) ? (float)(150.0 / dist) : 1.0f;
-            float edgeFade = clamp01((float)(1.0 - (dist / 220.0)));
-
-            double speed = sqrt(b->vx * b->vx + b->vy * b->vy);
-            float intensity = clamp01((float)(speed / 19.0));
-            float armTint = 0.5f + 0.5f * (float)sin(atan2(dy, dx) * 2.0 + dist * 0.045);
-            float twinkle = 0.72f + 0.28f * (float)sin(currentTime * 1.7 + i * 12.9898);
-
-            float ptSize;
-            float alpha;
-            // Pseudo-random index assignments establish multi-layered visual depth
-            if (i % 7 == 0) {
-                ptSize = (3.0f + 1.4f * intensity) * (1.0f / sqrt(scale));  
-                alpha = 0.78f * distFade * twinkle;
-            } else if (i % 3 == 0) {
-                ptSize = (2.0f + 0.8f * armTint) * (1.0f / sqrt(scale));  
-                alpha = 0.46f * distFade;
-            } else {
-                ptSize = (1.0f + 0.5f * edgeFade) * (1.0f / sqrt(scale));  
-                alpha = 0.24f * distFade;
-            }
-
-            float red = mixf(0.42f, 1.0f, intensity);
-            float green = mixf(0.56f, 0.86f, armTint);
-            float blue = mixf(0.92f, 1.0f, 1.0f - intensity * 0.35f);
-
-            glPointSize(ptSize * 2.7f);
-            glBegin(GL_POINTS);
-                glColor4f(red, green, blue, alpha * 0.12f);
-                glVertex2f((float)b->x, (float)b->y);
-            glEnd();
-
-            glPointSize(ptSize);
-            glBegin(GL_POINTS);
-                glColor4f(red, green, blue, alpha);
-                glVertex2f((float)b->x, (float)b->y);
-            glEnd();
-        }
+        // PASS 3: Orbiting stars and dust
+        renderStars(sim, massiveCount, baryX, baryY, scale);
 
         // PASS 4: Binary black hole accretion glow
         if (massiveCount >= 2) {
@@ -226,8 +250,7 @@ int main() {
         for (int i = 0; i < massiveCount && i < sim->num_bodies; i++) {
             body* hole = &sim->bodies[i];
             float massScale = (float)cbrt(std::max(1.0, hole->mass) / 2800.0);
-            float pulse = 0.88f + 0.12f * (float)sin(currentTime * 3.0 + i * 1.9);
-            drawAccretionGlow(hole, scale, massScale, pulse);
+            drawCentralBody(hole, scale, massScale);
         }
 
         glDisable(GL_BLEND);

@@ -24,10 +24,10 @@ Simulation* init_simulation(int N,double G,double dt) {
     sim->bodies=(body*)malloc(N*sizeof(body));
     if (sim->bodies == NULL) {
         free(sim);
-        return NULL;
+        return NULL; //failure in memory allocation
     }
 
-    // Equal-mass binary black holes orbiting their shared barycenter.
+    // Equal mass binary black holes orbiting their shared barycenter
     double black_hole_mass=2800.0;
     double separation=64.0;
     double half_separation=separation*0.5;
@@ -38,13 +38,23 @@ Simulation* init_simulation(int N,double G,double dt) {
     sim->bodies[0].vx=0.0;
     sim->bodies[0].vy=binary_speed;
     sim->bodies[0].mass=black_hole_mass;
-
+    //To show trails previous position must be stored
+    for (int j=0; j< TRAIL_LENGTH; j++) {
+        sim->bodies[0].trail_x[j]=sim->bodies[0].x;
+        sim->bodies[0].trail_y[j]=sim->bodies[0].y;
+        sim->bodies[0].trail_index=0;
+    }
     sim->bodies[1].x=half_separation;
     sim->bodies[1].y=0.0;
     sim->bodies[1].vx=0.0;
     sim->bodies[1].vy=-binary_speed;
     sim->bodies[1].mass=black_hole_mass;
 
+    for (int j=0; j<TRAIL_LENGTH; j++) {
+        sim->bodies[1].trail_x[j]=sim->bodies[1].x;
+        sim->bodies[1].trail_y[j]=sim->bodies[1].y;
+        sim->bodies[1].trail_index=0;
+    }
     for(int i=sim->massive_body_count; i<N; i++) {
         double r= 72+random01()*118; //circumbinary disk outside the black hole pair
         double angle=random01()*2*M_PI; //random angles spawn to declutter
@@ -59,6 +69,11 @@ Simulation* init_simulation(int N,double G,double dt) {
         sim->bodies[i].vx=-v*sin(angle)+v*turbulence*cos(angle);
         sim->bodies[i].vy=v*cos(angle)+v*turbulence*sin(angle);
 
+        for (int j=0; j<TRAIL_LENGTH; j++) {
+            sim->bodies[i].trail_x[j]=sim->bodies[i].x;
+            sim->bodies[i].trail_y[j]=sim->bodies[i].y;
+            sim->bodies[i].trail_index=0;
+        }
 
     }
     return sim;
@@ -81,6 +96,9 @@ void step_simulation(Simulation*sim) {
     for (int i=0; i<N; i++) {
     sim->bodies[i].x+=b[i].vx*dt;
     sim->bodies[i].y+=b[i].vy*dt;
+    b[i].trail_x[b[i].trail_index]=b[i].x;
+    b[i].trail_y[b[i].trail_index]=b[i].y;
+    b[i].trail_index=(b[i].trail_index+1)%TRAIL_LENGTH;
     }
     //temp arrays for acceleration values
     double *ax=(double*)malloc(N*sizeof(double));
