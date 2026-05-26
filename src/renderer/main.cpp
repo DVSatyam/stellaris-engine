@@ -1,4 +1,4 @@
-#define GL_SILENCE_DEPRECATION
+                                                                                                                                                                                        #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <cmath>
@@ -42,10 +42,11 @@ static void renderTrails(Simulation* sim, int massiveCount, double baryX, double
         for (int j=0; j<TRAIL_LENGTH;j++) {
             int idx=(b->trail_index+j)%TRAIL_LENGTH;
             float alpha=(float)j/TRAIL_LENGTH;
-            glColor4f(0.7f,0.8f,1.0f,alpha*0.17f);
+            glColor4f(0.7f,0.8f,1.0f,alpha*0.22f);
             glVertex2f((float)b->trail_x[idx],(float)b->trail_y[idx]);
 
         }
+        
         glEnd();
     }
 
@@ -63,16 +64,16 @@ static void renderStars(Simulation* sim, int massiveCount, double baryX, double 
         double dy = b->y - baryY;
         double dist = sqrt(dx * dx + dy * dy);
 
-        float distFade = (dist > 150.0) ? (float)(150.0 / dist) : 1.0f;
+        float distFade = (dist > 200.0) ? (float)(200.0 / dist) : 1.0f;
 
         double speed = sqrt(b->vx * b->vx + b->vy * b->vy);
         float intensity = clamp01((float)(speed / STAR_SPEED_SCALE));
 
-        // Particle color is derived from velocity.
-        // Faster particles appear hotter and brighter.
-        float red = mixf(0.45f, 1.0f, intensity);
-        float green = mixf(0.55f, 0.85f, intensity);
-        float blue = 1.0f;
+        // Particle color is derived from velocity
+        // Faster particles appear hotter and brighter
+        float red = mixf(0.65f, 1.0f, intensity);
+        float green = mixf(0.72f, 0.92f, intensity);
+        float blue = mixf(1.0f, 0.88f, intensity);
 
         // Faster stars appear brighter and larger
         float pointSize;
@@ -82,23 +83,23 @@ static void renderStars(Simulation* sim, int massiveCount, double baryX, double 
             // Fast stars near massive bodies should stand out,
             // but not overpower the rest of the galaxy
             pointSize = 2.5f * zoomFactor;
-            alpha = 0.62f * distFade;
+            alpha = 0.82f * distFade;
         } else if (speed > 8.0) {
             pointSize = 1.9f * zoomFactor;
-            alpha = 0.50f * distFade;
+            alpha = 0.68f * distFade;
         } else {
             // Boost slower background stars slightly more
             // so the galaxy feels fuller and more luminous
             pointSize = 1.5f * zoomFactor;
-            alpha = 0.42f * distFade;
+            alpha = 0.58f * distFade;
         }
 
         // Soft outer glow
         // Glow strength scales more gently now so
         // high-speed stars do not dominate the frame
-        float glowStrength = mixf(0.05f, 0.10f, intensity);
+        float glowStrength = mixf(0.10f, 0.22f, intensity);
 
-        glPointSize(pointSize * 1.9f);
+        glPointSize(pointSize * 2.8f);
         glBegin(GL_POINTS);
             glColor4f(red, green, blue, alpha * glowStrength);
             glVertex2f((float)b->x, (float)b->y);
@@ -117,14 +118,14 @@ static void drawCentralBody(const body* b, float scale, float massScale) { //bri
     float zoomFactor = 1.0f / scale;
 
     // Outer soft glow
-    glPointSize(90.0f * massScale * zoomFactor);
+    glPointSize(70.0f * massScale * zoomFactor);
     glBegin(GL_POINTS);
-        glColor4f(0.25f, 0.35f, 0.85f, 0.05f);
+        glColor4f(0.25f, 0.35f, 0.85f, 0.035f);
         glVertex2f((float)b->x, (float)b->y);
     glEnd();
 
     // Inner brighter glow
-    glPointSize(42.0f * massScale * zoomFactor);
+    glPointSize(34.0f * massScale * zoomFactor);
     glBegin(GL_POINTS);
         glColor4f(0.85f, 0.75f, 1.0f, 0.12f);
         glVertex2f((float)b->x, (float)b->y);
@@ -163,8 +164,16 @@ int main() {
     float offsetX = 0.0f;
     float offsetY = 0.0f;
     float moveSpeed = 150.0f; // Scaled up to accommodate delta time normalization
+    bool followBarycenter = false;
+    bool bKeyHeld = false;
+    bool paused = false;
+    bool pKeyHeld = false;
+    bool rKeyHeld = false;
+    float timeScale = 1.0f;
+    bool leftBracketHeld = false;
+    bool rightBracketHeld = false;
 
-    // Initialize time tracking for frame-rate independence
+    // Initialize time tracking for frame rate independence
     double lastTime = glfwGetTime();
 
     while (!glfwWindowShouldClose(window)) {
@@ -173,9 +182,61 @@ int main() {
         double deltaTime = currentTime - lastTime;
         lastTime = currentTime;
 
-        // Pass frame-normalized parameter to the physics cycle
-        sim->dt = base_dt * (deltaTime * 60.0); // Calibrated to baseline 60 FPS target
-        step_simulation(sim);
+        bool bPressed = glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS; //for barycenter mode I will get redirected to barycenter directly
+
+        if (bPressed && !bKeyHeld) {
+            followBarycenter = !followBarycenter;
+        }
+
+        bKeyHeld = bPressed;
+
+        bool pPressed = glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS;
+
+        if (pPressed && !pKeyHeld) {
+            paused = !paused;
+        }
+
+        pKeyHeld = pPressed;
+
+        bool rPressed = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
+
+        if (rPressed && !rKeyHeld) {
+            free_simulation(sim);
+            sim = init_simulation(N, G, base_dt);
+
+            if (sim == NULL || sim->bodies == NULL) {
+                std::cout << "Simulation reset failed!" << std::endl;
+                glfwTerminate();
+                return -1;
+            }
+        }
+
+        rKeyHeld = rPressed;
+
+        bool leftBracketPressed = glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS; // [ key makes the simulation slower 
+
+        if (leftBracketPressed && !leftBracketHeld) {
+            timeScale *= 0.8f;
+            if (timeScale < 0.1f) timeScale = 0.1f;
+        }
+
+        leftBracketHeld = leftBracketPressed;
+
+        bool rightBracketPressed = glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS;
+
+        if (rightBracketPressed && !rightBracketHeld) { //  ] makes the simulation faster
+            timeScale *= 1.25f;
+            if (timeScale > 20.0f) timeScale = 20.0f;
+        }
+
+        rightBracketHeld = rightBracketPressed;
+
+        
+        sim->dt = base_dt * timeScale * (deltaTime * 60.0); // Calibrated to baseline 60 FPS target
+
+        if (!paused) {
+            step_simulation(sim);
+        }
 
         // Frame rate independent interactive panning
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) offsetY += moveSpeed * deltaTime * scale;
@@ -219,11 +280,12 @@ int main() {
         float focusX = (float)baryX;
         float focusY = (float)baryY;
 
-        // Rendering pipeline:
-        // 1. Background glow for large-scale galactic atmosphere
-        // 2. Motion trails to visualize velocity and orbital motion
-        // 3. Stars and interstellar particles
-        // 4. Massive central bodies with additive glow
+        if (followBarycenter) {
+            offsetX += (focusX - offsetX) * 0.02f;
+            offsetY += (focusY - offsetY) * 0.02f;
+        }
+
+       
 
         // PASS 1: Background galactic glow
         renderBackgroundGlow(focusX, focusY, scale);
@@ -256,6 +318,20 @@ int main() {
         glDisable(GL_BLEND);
         glDisable(GL_LINE_SMOOTH);
         glDisable(GL_POINT_SMOOTH);
+
+        char title[256];
+        snprintf(
+            title,
+            sizeof(title),
+                        "KE: %.2f | PE: %.2f | Total: %.2f | Speed: %.2fx | Barycenter: %s | Paused: %s | [R] Reset",
+            sim->kinetic_energy,
+            sim->potential_energy,
+            sim->total_energy,
+            timeScale,
+            followBarycenter ? "ON" : "OFF",
+            paused ? "YES" : "NO"
+        );
+        glfwSetWindowTitle(window, title);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

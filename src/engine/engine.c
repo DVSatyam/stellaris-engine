@@ -16,6 +16,7 @@ Simulation* init_simulation(int N,double G,double dt) {
 
     Simulation*sim=(Simulation*)malloc(sizeof(Simulation));
     if (sim == NULL) return NULL;
+
     sim->num_bodies=N;
     sim->massive_body_count=2;
     sim->G=G;
@@ -34,10 +35,11 @@ Simulation* init_simulation(int N,double G,double dt) {
     double binary_speed=sqrt((G*black_hole_mass)/(2.0*separation));
 
     sim->bodies[0].x=-half_separation;
-    sim->bodies[0].y=0.0;
+    sim->bodies[0].y=0.0; 
     sim->bodies[0].vx=0.0;
     sim->bodies[0].vy=binary_speed;
     sim->bodies[0].mass=black_hole_mass;
+
     //To show trails previous position must be stored
     for (int j=0; j< TRAIL_LENGTH; j++) {
         sim->bodies[0].trail_x[j]=sim->bodies[0].x;
@@ -126,6 +128,24 @@ void step_simulation(Simulation*sim) {
 
         }
     }
+    sim->kinetic_energy=0.0;
+    for (int i=0; i<N; i++) { //KE Calculation
+        body *b=&sim->bodies[i];
+        double v2=(b->vx*b->vx)+(b->vy*b->vy);
+        sim->kinetic_energy+=0.5*b->mass*v2;
+    }
+    sim->potential_energy=0.0;
+    for (int i=0; i<N; i++) {
+        for (int j=i+1; j<N; j++) {
+            double dx=b[j].x-b[i].x;
+            double dy=b[j].y-b[i].y;
+            double eps=1.0;
+            double r2=dx*dx+dy*dy+eps; //Gravitational Softening- so the force doesnt tend to infinity when d=0
+            double r=sqrt(r2);
+            sim->potential_energy-=(G*b[i].mass*b[j].mass)/r;
+        }
+    }
+    sim->total_energy=sim->kinetic_energy+sim->potential_energy;
     //Velocity update- Verlet Integration- second order error prop to t^2 rather than euler being t
     for (int i=0;i<N;i++) {
         b[i].vx+=ax[i]*dt;

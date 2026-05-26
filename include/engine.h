@@ -1,6 +1,6 @@
 #ifndef ENGINE_H
 #define ENGINE_H
-#define TRAIL_LENGTH 64
+#define TRAIL_LENGTH 32
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -9,7 +9,7 @@ typedef struct {
     double x,y;
     double vx,vy;
     double mass;   
-    double trail_x[TRAIL_LENGTH];
+    double trail_x[TRAIL_LENGTH]; //to store the previous positions 
     double trail_y[TRAIL_LENGTH];
     int trail_index;
 } body;
@@ -19,6 +19,9 @@ typedef struct {
     int massive_body_count;
     double G;
     double dt;
+    double kinetic_energy;
+    double potential_energy;
+    double total_energy;
     
     body *bodies; //dynamically allocated array pointing to bodies
 } Simulation;
@@ -26,6 +29,7 @@ typedef struct {
 Simulation* init_simulation(int N,double G,double dt);
 void step_simulation(Simulation*sim);
 void free_simulation(Simulation*sim);
+
 
 #ifdef __cplusplus
 }
