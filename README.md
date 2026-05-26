@@ -1,293 +1,142 @@
-Stellaris Engine
+# Stellaris Engine
 
-A real time N-body simulation engine focused on gravitational dynamics, numerical stability, and interactive visualization.
+A real-time N-body gravitational simulation engine built using C++ and OpenGL.
 
-⸻
+---
 
-Overview
+## Overview
 
-Stellaris Engine is a physics-based simulation project designed to model the interaction of multiple bodies under gravity. The engine currently supports Newtonian gravitational simulation using the Velocity Verlet integration method, combined with gravitational softening for improved numerical stability.
+Stellaris Engine simulates the gravitational interaction between multiple bodies in real time. The project focuses on orbital motion, numerical stability, and interactive visualization of large particle systems.
 
-The simulation is rendered in real time using OpenGL, allowing interactive visualization of orbital mechanics, clustering, and emergent gravitational behavior.
+The engine currently supports binary black hole systems with orbiting particle disks, real-time controls, barycenter tracking, particle trails, and adjustable simulation speed.
 
-⸻
+---
 
-Features
+## Features
 
-Current Features
+- Real-time N-body gravitational simulation
+- Velocity Verlet integration
+- Gravitational softening
+- OpenGL-based rendering
+- Binary black hole preset
+- Circumbinary particle disk simulation
+- Real-time particle trails
+- Dynamic glow rendering
+- Barycenter tracking mode
+- Pause / resume simulation
+- Runtime simulation speed control
+- Randomized system generation
+- Real-time kinetic and potential energy display
 
-* Real-time N-body gravitational simulation
-* Newtonian gravity implementation
-* Velocity Verlet integration
-* Gravitational softening
-* OpenGL rendering pipeline
-* Dynamic body updates
-* Real-time orbital visualization
-* Binary black hole initial-condition preset
-* Circumbinary particle disk dynamics
-* Configurable simulation parameters
-* Stable timestep-based physics updates
+---
 
-⸻
+## Physics Model
 
-Binary Black Hole Mode
+The engine uses Newtonian gravity for force calculations.
 
-The current simulation preset initializes two equal-mass black holes orbiting around their shared barycenter. The remaining bodies are spawned in a circumbinary disk, where close passes around either black hole produce chaotic scattering, velocity spikes, and visible stream-like structures.
+Force Equation:
 
-This mode is useful for exploring:
-
-* Barycentric motion
-* Circumbinary orbital instability
-* Gravitational slingshot effects
-* Disk disruption near massive binary systems
-
-⸻
-
-Physics Model
-
-Newtonian Gravity
-
-The engine computes gravitational interaction between all bodies using Newton’s law of universal gravitation.
-
-The force magnitude between two bodies is:
-
-F = G \\frac{m_1 m_2}{r^2}
+F = (G * m1 * m2) / r²
 
 Where:
+- G = gravitational constant
+- m1, m2 = masses of bodies
+- r = distance between bodies
 
-* G = gravitational constant
-* m1, m2 = masses of interacting bodies
-* r = distance between bodies
+### Gravitational Softening
 
-⸻
+To avoid extremely large forces at very small distances:
 
-Gravitational Softening
-
-To avoid singularities and extremely large forces at very small distances, the engine uses gravitational softening.
-
-The softened force equation becomes:
-
-F = G \\frac{m_1 m_2}{r^2 + \\epsilon^2}
+F = (G * m1 * m2) / (r² + ε²)
 
 Where:
+- ε = softening factor
 
-* ε = softening parameter
+This improves stability and prevents force singularities.
 
-Advantages
+---
 
-* Improved numerical stability
-* Better collision handling
-* Reduced force singularities
-* Smoother large-scale simulations
+## Integration Method
 
-⸻
+The simulation uses the Velocity Verlet integration method for updating motion.
 
-Velocity Verlet Integration
+Position Update:
 
-The simulation currently uses the Velocity Verlet integration method, which provides:
+x(t + dt) = x(t) + v(t)dt + 0.5a(t)dt²
 
-* Better energy conservation
-* Improved orbital stability
-* Reduced numerical drift
-* Higher accuracy than Euler integration
+Velocity Update:
 
-Position Update
+v(t + dt) = v(t) + ((a(t) + a(t + dt)) / 2)dt
 
-x(t + \\Delta t) = x(t) + v(t)\\Delta t + \\frac{1}{2}a(t)\\Delta t^2
+Advantages:
+- Better energy conservation
+- Improved orbital stability
+- Reduced numerical drift
 
-Velocity Update
+---
 
-v(t + \\Delta t) = v(t) + \\frac{a(t) + a(t + \\Delta t)}{2}\\Delta t
+## Controls
 
-This makes the engine suitable for long-duration orbital simulations.
+| Key | Action |
+|------|------|
+| W A S D | Move camera |
+| Up / Down Arrow | Zoom in / out |
+| B | Toggle barycenter follow |
+| P | Pause simulation |
+| R | Reset simulation |
+| [ ] | Decrease / increase simulation speed |
 
-⸻
+---
 
-Rendering
+## Technologies Used
 
-The engine uses OpenGL for rendering.
+- C++
+- OpenGL
+- GLFW
 
-Current Rendering Capabilities
+---
 
-* Real-time body visualization
-* Frame-based updates
-* GPU-accelerated rendering pipeline
-* Scalable rendering architecture
+## Current Limitations
 
-⸻
+- O(N²) force calculations
+- CPU-only physics calculations
+- No collision merging
+- No Barnes-Hut optimization
+- Limited UI system
 
-Architecture
+---
 
-Core Components
+## Future Plans
 
-Physics Engine
+- Barnes-Hut optimization
+- GPU acceleration
+- Collision handling
+- Improved rendering effects
+- Galaxy generation presets
+- Better UI and simulation controls
+- 3D camera system
+- Save/load simulation states
 
-Handles:
+---
 
-* Force calculations
-* Position updates
-* Velocity integration
-* Time stepping
-* Softening calculations
+## Build Requirements
 
-Renderer
+- C++17 Compiler
+- OpenGL
+- GLFW
+- CMake
 
-Handles:
+---
 
-* OpenGL rendering
-* Camera transformations
-* Frame updates
-* Body visualization
+## Build Instructions
 
-Simulation Controller
-
-Handles:
-
-* Simulation loop
-* Parameter control
-* Body management
-* Physics synchronization
-
-⸻
-
-Technologies Used
-
-C++
-OpenGL
-GLSL
-Physics Simulation
-Numerical Integration
-
-⸻
-
-Current Limitations
-
-* CPU-based force calculations
-* O(N²) interaction complexity
-* No collision merging yet
-* No Barnes-Hut optimization
-* Limited UI controls
-* No GPU compute acceleration
-
-⸻
-
-Future Roadmap
-
-Physics Improvements
-
-* Barnes-Hut optimization
-* Fast multipole methods
-* Adaptive timestep support
-* Relativistic corrections
-* Collision detection and merging
-* Elastic/inelastic collision handling
-* Multi-scale simulation support
-
-⸻
-
-Rendering Improvements
-
-* Particle trails
-* HDR rendering
-* Bloom effects
-* Instanced rendering
-* 3D camera controls
-* Skybox integration
-* Starfield rendering
-* Post-processing pipeline
-
-⸻
-
-Performance Improvements
-
-* GPU compute shaders
-* CUDA/OpenCL acceleration
-* Multithreaded physics updates
-* SIMD optimization
-* Spatial partitioning
-
-⸻
-
-Simulation Features
-
-* Galaxy generation
-* Black hole simulations
-* Binary star systems
-* Planetary system presets
-* Procedural initial conditions
-* Save/load simulation states
-* Interactive simulation editor
-
-⸻
-
-UI / UX Features
-
-* Real-time parameter controls
-* Simulation statistics panel
-* Pause/resume controls
-* Camera orbit controls
-* Debug visualization tools
-* Trajectory prediction overlays
-
-⸻
-
-Example Applications
-
-* Orbital mechanics visualization
-* Galaxy formation experiments
-* Educational physics demonstrations
-* Numerical methods experimentation
-* Real-time astrophysics visualization
-
-⸻
-
-Build Instructions
-
-Requirements
-
-C++17 Compiler
-OpenGL
-GLFW / SDL
-GLEW / GLAD
-CMake
-
-⸻
-
-Build
-
+```bash
 git clone <repository-url>
 cd stellaris-engine
+
 mkdir build
 cd build
+
 cmake ..
 make
-
-⸻
-
-Running
-
 ./stellaris-engine
-
-⸻
-
-Project Goals
-
-The long-term goal of Stellaris Engine is to evolve into a high-performance astrophysics sandbox capable of simulating large-scale gravitational systems with realistic physics and modern GPU-accelerated rendering.
-
-⸻
-
-License
-
-MIT License
-
-⸻
-
-Author
-
-Developed as a computational physics and graphics project exploring:
-
-* N-body dynamics
-* Numerical methods
-* Real-time rendering
-* Simulation architecture
-* Computational astrophysics
