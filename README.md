@@ -23,8 +23,23 @@ Current Features
 * OpenGL rendering pipeline
 * Dynamic body updates
 * Real-time orbital visualization
+* Binary black hole initial-condition preset
+* Circumbinary particle disk dynamics
 * Configurable simulation parameters
 * Stable timestep-based physics updates
+
+⸻
+
+Binary Black Hole Mode
+
+The current simulation preset initializes two equal-mass black holes orbiting around their shared barycenter. The remaining bodies are spawned in a circumbinary disk, where close passes around either black hole produce chaotic scattering, velocity spikes, and visible stream-like structures.
+
+This mode is useful for exploring:
+
+* Barycentric motion
+* Circumbinary orbital instability
+* Gravitational slingshot effects
+* Disk disruption near massive binary systems
 
 ⸻
 
